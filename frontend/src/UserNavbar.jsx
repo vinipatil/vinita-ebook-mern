@@ -29,14 +29,13 @@ function UserNavbar({ wishlistCount }) {
         >
           Wishlist ({wishlistCount})
         </NavLink>
-        <NavLink 
-          to="/logout" 
+        <button 
           onClick={handleLogout} 
           className="text-white" 
           style={{ fontWeight: "bold", textDecoration: "none" }}
         >
           Logout
-        </NavLink>
+        </button>
       </div>
     </nav>
   );
