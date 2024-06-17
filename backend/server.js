@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-mongoose.connect('mongodb+srv://vv131835:BzRzJnEm0voFXXua@cluster0.onyltqk.mongodb.net/tourism?retryWrites=true&w=majority&appName=Cluster0', { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect('mongodb+srv://vv131835:BzRzJnEm0voFXXua@cluster0.onyltqk.mongodb.net/tour2?retryWrites=true&w=majority&appName=Cluster0', { useNewUrlParser: true, useUnifiedTopology: true });
 
 const UserSchema = new mongoose.Schema({
   name: String,
@@ -26,23 +26,259 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
-const PublisherSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-});
-
 const bookSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  author: { type: String, required: true },
-  publisher: { type: PublisherSchema, required: true },
-  publishedYear: { type: String, required: true },
-  copiesAvailable: { type: Number, required: true },
-  photoUrl: { type: String, required: true },
-  price: { type: Number, required: true },
-  summary: { type: String, required: true },
-  purchasedCount: { type: Number, default: 0 }, 
+  bookName: { type: String, required: true },
+  imgUrl: { type: String, required: true },
+  description: { type: String, required: true },
+  publisherDate: { type: Date, required: true },
+  totalCopies: { type: Number, required: true },
+  purchasedCopies: { type: Number, default: 0 },
+  price: { type: Number, required: true }
 });
 
-const Book = mongoose.model('Book', bookSchema);
+const authorSchema = new mongoose.Schema({
+  authorName: { type: String, required: true },
+  books: [bookSchema]
+});
+
+const publisherSchema = new mongoose.Schema({
+  publisherName: { type: String, required: true },
+  authors: [authorSchema]
+});
+
+const Publisher = mongoose.model('Publisher', publisherSchema);
+
+// Import statements and middleware configurations remain the same
+
+app.post('/books', async (req, res) => {
+  try {
+    console.log('Received request data:', req.body);
+    const { publisherName, authorName, bookDetails } = req.body;
+
+    if (!publisherName || !authorName || !bookDetails) {
+      return res.status(400).json({ error: 'Publisher name, author name, and book details are required' });
+    }
+
+    let publisher = await Publisher.findOne({ publisherName });
+
+    if (!publisher) {
+      publisher = new Publisher({ publisherName, authors: [{ authorName, books: [bookDetails] }] });
+    } else {
+      let author = publisher.authors.find(author => author.authorName === authorName);
+      if (!author) {
+        publisher.authors.push({ authorName: authorName, books: [bookDetails] });
+      } else {
+        author.books.push(bookDetails);
+      }
+    }
+
+    await publisher.save();
+    res.json({ message: 'Book added successfully!', book: bookDetails });
+  } catch (error) {
+    console.error('Error adding book:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.put('/books/:id/buy', async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    const publisher = await Publisher.findOne({ 'authors.books._id': bookId });
+
+    if (!publisher) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    const author = publisher.authors.find(author => author.books.id(bookId));
+    const book = author.books.id(bookId);
+
+    if (book.totalCopies <= 0) {
+      return res.status(400).json({ message: 'No copies available' });
+    }
+
+    book.totalCopies -= 1;
+    book.purchasedCopies += 1;
+
+    await publisher.save();
+
+    res.status(200).json({ message: 'Book purchased successfully', book });
+  } catch (error) {
+    res.status(500).json({ message: 'Error purchasing book', error });
+  }
+});
+
+app.get('/books', async (req, res) => {
+  try {
+    const publishers = await Publisher.find().lean(); 
+    const formattedData = publishers.map(publisher => ({
+      publisherName: publisher.publisherName,
+      authors: publisher.authors.map(author => ({
+        authorName: author.authorName,
+        books: author.books.map(book => ({
+          _id: book._id,
+          bookName: book.bookName,
+          publisherDate: new Date(book.publisherDate).toLocaleDateString('en-US'), 
+          copies: book.totalCopies,
+          availableCopies: book.totalCopies - book.purchasedCopies, 
+          price: book.price,
+          description: book.description,
+          imageurl: book.imgUrl,
+        }))
+      }))
+    }));
+
+    res.json(formattedData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching books' });
+  }
+});
+
+app.put('/books/:id', async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    const { bookDetails } = req.body;
+    const publisher = await Publisher.findOne({ 'authors.books._id': bookId });
+
+    if (!publisher) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    const author = publisher.authors.find(author => author.books.id(bookId));
+    const book = author.books.id(bookId);
+
+    Object.assign(book, bookDetails);
+
+    await publisher.save();
+    res.status(200).json({ message: 'Book updated successfully', book });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating book' });
+  }
+});
+
+app.delete('/books/:id', async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    const publisher = await Publisher.findOne({ 'authors.books._id': bookId });
+
+    if (!publisher) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    const author = publisher.authors.find(author => author.books.id(bookId));
+    author.books.id(bookId).remove();
+
+    await publisher.save();
+    res.status(200).json({ message: 'Book deleted successfully', bookId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error deleting book' });
+  }
+});
+
+
+
+app.post('/purchase/:id', async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    const publisher = await Publisher.findOne({ 'authors.books._id': bookId });
+
+    if (!publisher) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    const author = publisher.authors.find(author => author.books.id(bookId));
+    const book = author.books.id(bookId);
+
+    if (book.totalCopies <= 0) {
+      return res.status(400).json({ message: 'No copies available' });
+    }
+
+    book.totalCopies -= 1;
+    book.purchasedCopies += 1;
+
+    await publisher.save();
+
+    res.status(200).json({ message: 'Book purchased successfully', book });
+  } catch (error) {
+    res.status(500).json({ message: 'Error purchasing book', error });
+  }
+});
+
+app.get('/books', async (req, res) => {
+  try {
+    const publishers = await Publisher.find().lean();
+    const formattedData = publishers.map(publisher => ({
+      publisherName: publisher.publisherName,
+      authors: publisher.authors.map(author => ({
+        authorName: author.authorName,
+        books: author.books.map(book => ({
+          _id: book._id,
+          bookName: book.bookName,
+          publisherDate: book.publisherDate,
+          totalCopies: book.totalCopies,
+          purchasedCopies: book.purchasedCopies,
+          price: book.price,
+          description: book.description,
+          imgUrl: book.imgUrl,
+        }))
+      }))
+    }));
+    res.json(formattedData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching books' });
+  }
+});
+
+
+
+
+
+
+app.put('/books/:id', async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    const { bookDetails } = req.body;
+    const publisher = await Publisher.findOne({ 'authors.books._id': bookId });
+
+    if (!publisher) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    const author = publisher.authors.find(author => author.books.id(bookId));
+    const book = author.books.id(bookId);
+
+    Object.assign(book, bookDetails);
+
+    await publisher.save();
+    res.status(200).json({ message: 'Book updated successfully', book });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating book' });
+  }
+});
+
+app.delete('/books/:id', async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    const publisher = await Publisher.findOne({ 'authors.books._id': bookId });
+
+    if (!publisher) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    const author = publisher.authors.find(author => author.books.id(bookId));
+    author.books.id(bookId).remove();
+
+    await publisher.save();
+    res.status(200).json({ message: 'Book deleted successfully', bookId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error deleting book' });
+  }
+});
 
 
 app.post('/register', async (req, res) => {
@@ -58,21 +294,27 @@ app.post('/register', async (req, res) => {
 
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email, password });
-  if (user) {
-    const loginTime = new Date();
-    user.logins.push({ loginTime });
-    await user.save();
-    const loginIndex = user.logins.length - 1;
-    if (user.userType === 'admin') {
-      res.send({ message: 'Welcome to the admin dashboard', loginIndex });
+  try {
+    const user = await User.findOne({ email, password });
+    if (user) {
+      const loginTime = new Date();
+      user.logins.push({ loginTime });
+      await user.save();
+      const loginIndex = user.logins.length - 1;
+      if (user.userType === 'admin') {
+        res.send({ message: 'Welcome to the admin dashboard', loginIndex });
+      } else {
+        res.send({ message: 'Welcome to the user dashboard', loginIndex });
+      }
     } else {
-      res.send({ message: 'Welcome to the user dashboard', loginIndex });
+      res.send({ message: 'Invalid email or password' });
     }
-  } else {
-    res.send({ message: 'Invalid email or password' });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).send({ message: 'Server error' });
   }
 });
+
 
 app.post('/logout', async (req, res) => {
   const { email, loginIndex } = req.body;
@@ -120,88 +362,6 @@ app.delete('/remove-user-login/:userId/:loginIndex', async (req, res) => {
     res.status(500).send({ message: 'Error removing user login' });
   }
 });
-
-app.post('/add-book', async (req, res) => {
-  const { name, author, publisherName, publishedYear, copiesAvailable, photoUrl, price, summary } = req.body;
-
-  const publisher = { name: publisherName };
-
-  const book = new Book({
-    name,
-    author,
-    publisher,
-    publishedYear,
-    copiesAvailable,
-    photoUrl,
-    price, 
-    summary, 
-  });
-
-  try {
-    await book.save();
-    res.send({ message: 'Book added successfully', book });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ message: 'Error adding book' });
-  }
-});
-
-app.get('/books', async (req, res) => {
-  try {
-    const books = await Book.find();
-    res.send(books);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ message: 'Error fetching books' });
-  }
-});
-
-app.put('/books/:id/buy', async (req, res) => {
-  try {
-    const bookId = req.params.id;
-    const book = await Book.findById(bookId);
-    if (!book) {
-      return res.status(404).json({ message: 'Book not found' });
-    }
-
-    if (book.copiesAvailable > 0) {
-      book.copiesAvailable -= 1;
-      book.purchasedCount += 1; 
-      await book.save();
-      res.status(200).json({ message: 'Book bought successfully' });
-    } else {
-      res.status(400).json({ message: 'No copies available' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-
-app.put('/books/:id', async (req, res) => {
-  try {
-    const bookId = req.params.id;
-    const updatedBookData = req.body;
-    const book = await Book.findByIdAndUpdate(bookId, updatedBookData, { new: true });
-    res.status(200).json({ message: 'Book updated successfully', book });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error updating book' });
-  }
-});
-
-app.delete('/books/:id', async (req, res) => {
-  try {
-    const bookId = req.params.id;
-    await Book.findByIdAndDelete(bookId);
-    res.status(200).json({ message: 'Book deleted successfully', bookId });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error deleting book' });
-  }
-});
-
-
 
 app.listen(5000, () => {
   console.log('Server is running on port 5000');

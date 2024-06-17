@@ -25,14 +25,18 @@ function Login() {
       }
     } catch (error) {
       console.error(error);
+      setMessage('Error logging in. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cover" style={{
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover"
+      style={{
         backgroundImage:
           'url("https://www.wns.co.za/Portals/0/Images/HeaderBanner/desktop/1087/53/travel_HD.jpg")',
-      }}>
+      }}
+    >
       <div className="bg-white p-8 rounded-lg shadow-lg w-96">
         <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
         <input

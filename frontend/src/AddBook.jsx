@@ -4,29 +4,34 @@ import { useNavigate } from 'react-router-dom';
 import AdminNavbar from './AdminNavbar';
 
 function AddBook() {
-  const [name, setName] = useState('');
-  const [author, setAuthor] = useState('');
+  const [bookName, setBookName] = useState('');
+  const [imgUrl, setImgUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [publisherName, setPublisherName] = useState('');
-  const [publishedYear, setPublishedYear] = useState('');
-  const [copiesAvailable, setCopiesAvailable] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [authorName, setAuthorName] = useState('');
+  const [publisherDate, setPublisherDate] = useState('');
+  const [totalCopies, setTotalCopies] = useState('');
   const [price, setPrice] = useState('');
-  const [summary, setSummary] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
   const handleAddBook = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/add-book', {
-        name,
-        author,
-        publisherName,
-        publishedYear,
-        copiesAvailable,
-        photoUrl,
-        price,
-        summary,
+      const bookDetails = {
+        bookName: bookName,
+        imgUrl: imgUrl,
+        description: description,
+        publisherDate: publisherDate,
+        totalCopies: parseInt(totalCopies), // Ensure it's parsed as an integer
+        price: parseFloat(price), // Ensure it's parsed as a float
+      };
+
+      const response = await axios.post('http://localhost:5000/books', {
+        publisherName: publisherName,
+        authorName: authorName,
+        bookDetails: bookDetails,
       });
+
       setMessage(response.data.message);
       navigate('/admin-dashboard');
     } catch (error) {
@@ -38,70 +43,66 @@ function AddBook() {
   return (
     <>
       <AdminNavbar />
-      <div
-        className="min-h-screen flex items-center justify-center bg-cover bg-blue-100"
-        // style={{
-        //   backgroundImage:
-        //     'url("https://media0.giphy.com/media/xTiTnxpQ3ghPiB2Hp6/giphy.gif")',
-        // }}
-      >
+      <div className="min-h-screen flex items-center justify-center bg-cover bg-blue-100">
         <div className="bg-white p-8 mt-3 rounded-lg shadow-lg w-96">
           <h1 className="text-2xl font-bold mb-6 text-center">Add Book</h1>
           <input
             type="text"
             className="w-full mb-4 p-2 border rounded"
-            placeholder="Title"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            placeholder="Book Name"
+            value={bookName}
+            onChange={(e) => setBookName(e.target.value)}
           />
           <input
             type="text"
             className="w-full mb-4 p-2 border rounded"
-            placeholder="Author"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
+            placeholder="Image URL"
+            value={imgUrl}
+            onChange={(e) => setImgUrl(e.target.value)}
           />
           <input
             type="text"
             className="w-full mb-4 p-2 border rounded"
-            placeholder="Publisher"
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <input
+            type="text"
+            className="w-full mb-4 p-2 border rounded"
+            placeholder="Publisher Name"
             value={publisherName}
             onChange={(e) => setPublisherName(e.target.value)}
           />
           <input
             type="text"
             className="w-full mb-4 p-2 border rounded"
-            placeholder="Published Date"
-            value={publishedYear}
-            onChange={(e) => setPublishedYear(e.target.value)}
+            placeholder="Author Name"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+          />
+          <input
+            type="date"
+            className="w-full mb-4 p-2 border rounded"
+            placeholder="Publisher Date"
+            value={publisherDate}
+            onChange={(e) => setPublisherDate(e.target.value)}
           />
           <input
             type="number"
             className="w-full mb-4 p-2 border rounded"
-            placeholder="Number of Copies"
-            value={copiesAvailable}
-            onChange={(e) => setCopiesAvailable(e.target.value)}
-          />
-          <input
-            type="text"
-            className="w-full mb-4 p-2 border rounded"
-            placeholder="Image URL"
-            value={photoUrl}
-            onChange={(e) => setPhotoUrl(e.target.value)}
+            placeholder="Total Copies"
+            value={totalCopies}
+            onChange={(e) => setTotalCopies(e.target.value)}
           />
           <input
             type="number"
             className="w-full mb-4 p-2 border rounded"
-            placeholder="Price (₹)"
+            placeholder="Price"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
           />
-          <textarea
-            className="w-full mb-4 p-2 border rounded"
-            placeholder="Summary"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-          ></textarea>
+
           <button
             className="w-full bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mb-2"
             onClick={handleAddBook}

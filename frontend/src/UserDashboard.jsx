@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import UserNavbar from './UserNavbar';
 import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import UserNavbar from './UserNavbar';
 
 function UserDashboard() {
   const [books, setBooks] = useState([]);
@@ -15,18 +15,38 @@ function UserDashboard() {
   const fetchBooks = async () => {
     try {
       const response = await axios.get('http://localhost:5000/books');
-      setBooks(response.data);
+      const formattedBooks = response.data.flatMap(publisher =>
+        publisher.authors.flatMap(author =>
+          author.books.map(book => ({
+            ...book,
+            authorName: author.authorName,
+            publisherName: publisher.publisherName
+          }))
+        )
+      );
+      setBooks(formattedBooks);
     } catch (error) {
-      console.error(error);
+      console.error('Error fetching books:', error);
     }
   };
 
-  // Load wishlist from localStorage on mount
   useEffect(() => {
     fetchBooks();
     const savedWishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
     setWishlist(savedWishlist);
   }, []);
+
+  const handleAddToWishlist = (book) => {
+    const updatedWishlist = [...wishlist, book];
+    setWishlist(updatedWishlist);
+    localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
+  };
+
+  const handleRemoveFromWishlist = (book) => {
+    const updatedWishlist = wishlist.filter((item) => item._id !== book._id);
+    setWishlist(updatedWishlist);
+    localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
+  };
 
   const handleViewMore = (book) => {
     setSelectedBook(book);
@@ -42,31 +62,19 @@ function UserDashboard() {
     try {
       const response = await axios.put(`http://localhost:5000/books/${book._id}/buy`);
       if (response.status === 200) {
-        setBookName(book.name);
+        setBookName(book.bookName);
         setShowThankYouModal(true);
         await fetchBooks();
       } else {
         alert('Failed to buy the book. No copies available.');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error buying book:', error);
     }
   };
 
   const handleCloseThankYouModal = () => {
     setShowThankYouModal(false);
-  };
-
-  const handleAddToWishlist = (book) => {
-    const updatedWishlist = [...wishlist, book];
-    setWishlist(updatedWishlist);
-    localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
-  };
-
-  const handleRemoveFromWishlist = (book) => {
-    const updatedWishlist = wishlist.filter((item) => item._id !== book._id);
-    setWishlist(updatedWishlist);
-    localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
   };
 
   return (
@@ -78,13 +86,14 @@ function UserDashboard() {
           {books.map((book) => (
             <div key={book._id} className="bg-white shadow-md rounded-lg p-4 m-5 w-96 flex flex-col justify-between relative" style={{ height: 'auto' }}>
               <div className="flex">
-                <img src={book.photoUrl} alt={book.name} className="h-52 w-32 object-cover mb-4 mt-3 rounded-lg" />
+                <img src={book.imgUrl} className="h-52 w-32 object-cover mb-4 mt-3 rounded-lg" />
                 <div className="ml-5 flex-1">
-                  <h2 className="text-xl font-bold mb-2">{book.name}</h2>
-                  <p className="text-gray-700 mb-2 truncate">Author: {book.author}</p>
-                  <p className="text-gray-700 mb-2 truncate">Publisher: {book.publisher.name}</p>
-                  <p className="text-gray-700 mb-2 truncate">Copies: {book.copiesAvailable}</p>
-                  <p className="text-gray-700 mb-2 truncate">Published Date: {new Date(book.publishedYear).toLocaleDateString('en-GB')}</p>
+                  <h2 className="text-xl font-bold mb-2">{book.bookName}</h2>
+                  <p className="text-gray-700 mb-2 truncate">Author: {book.authorName}</p>
+                  <p className="text-gray-700 mb-2 truncate">Publisher: {book.publisherName}</p>
+                  <p className="text-gray-700 mb-2 truncate">Total Copies: {book.totalCopies}</p>
+                  <p className="text-gray-700 mb-2 truncate">Available Copies: {book.totalCopies - book.purchasedCopies}</p>
+                  <p className="text-gray-700 mb-2 truncate">Published Date: {new Date(book.publisherDate).toLocaleDateString('en-GB')}</p>
                   <p className="text-gray-700 mb-2 truncate">Price: ₹{book.price}</p>
                 </div>
               </div>
@@ -101,7 +110,7 @@ function UserDashboard() {
                 >
                   Buy
                 </button>
-                {wishlist.some(item => item._id === book._id) ? (
+                {wishlist.some((item) => item._id === book._id) ? (
                   <button
                     className="absolute top-2 right-2 text-red-500 hover:text-red-700"
                     onClick={() => handleRemoveFromWishlist(book)}
@@ -128,20 +137,21 @@ function UserDashboard() {
 
       <Modal show={showModal} onHide={handleClose} centered>
         <Modal.Header closeButton>
-          <Modal.Title>{selectedBook?.name}</Modal.Title>
+          <Modal.Title>{selectedBook?.bookName}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedBook && (
             <>
-              <img src={selectedBook.photoUrl} alt={selectedBook.name} className="w-full object-contain mb-4 rounded-lg" style={{ height: '270px' }} />
+              <img src={selectedBook.imgUrl} alt={selectedBook.bookName} className="w-full object-contain mb-4 rounded-lg" style={{ height: '270px' }} />
               <div className="p-4">
-                <h2 className="text-xl font-bold mb-2">{selectedBook.name}</h2>
-                <p className="text-gray-700 mb-2">Author: {selectedBook.author}</p>
-                <p className="text-gray-700 mb-2">Publisher: {selectedBook.publisher.name}</p>
-                <p className="text-gray-700 mb-2">Copies: {selectedBook.copiesAvailable}</p>
-                <p className="text-gray-700 mb-2">Published Date: {new Date(selectedBook.publishedYear).toLocaleDateString('en-GB')}</p>
+                <h2 className="text-xl font-bold mb-2">{selectedBook.bookName}</h2>
+                <p className="text-gray-700 mb-2">Author: {selectedBook.authorName}</p>
+                <p className="text-gray-700 mb-2">Publisher: {selectedBook.publisherName}</p>
+                <p className="text-gray-700 mb-2">Total Copies: {selectedBook.totalCopies}</p>
+                <p className="text-gray-700 mb-2">Available Copies: {selectedBook.totalCopies - selectedBook.purchasedCopies}</p>
+                <p className="text-gray-700 mb-2">Published Date: {new Date(selectedBook.publisherDate).toLocaleDateString('en-GB')}</p>
                 <p className="text-gray-700 mb-2">Price: ₹{selectedBook.price}</p>
-                <p className="text-gray-700 mb-4">Summary: {selectedBook.summary}</p>
+                <p className="text-gray-700 mb-4">Summary: {selectedBook.description}</p>
                 <button className="bg-green-500 hover:bg-green-700 text-white p-2 rounded w-full" onClick={() => handleBuy(selectedBook)}>Buy</button>
               </div>
             </>
