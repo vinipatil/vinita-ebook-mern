@@ -5,80 +5,60 @@ import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function Wishlist() {
-  const [books, setBooks] = useState([]); // State to store all books
-  const [wishlist, setWishlist] = useState([]); // State to store wishlist items
-  const [showModal, setShowModal] = useState(false); // State to control modal for book details
-  const [selectedBook, setSelectedBook] = useState(null); // State to store currently selected book for details modal
-  const [showThankYouModal, setShowThankYouModal] = useState(false); // State to control modal for thank you message
-  const [bookName, setBookName] = useState(''); // State to store the name of the book bought
+  const [wishlist, setWishlist] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [showThankYouModal, setShowThankYouModal] = useState(false);
+  const [bookName, setBookName] = useState('');
 
-  // Function to fetch books from server
-  const fetchBooks = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/books');
-      setBooks(response.data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Load wishlist from localStorage on mount
   useEffect(() => {
-    fetchBooks(); // Fetch books from server
     const savedWishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
     setWishlist(savedWishlist);
   }, []);
 
-  // Function to handle adding a book to the wishlist
-  const handleAddToWishlist = (book) => {
-    const updatedWishlist = [...wishlist, book];
-    setWishlist(updatedWishlist);
-    localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
-  };
-
-  // Function to handle removing a book from the wishlist
   const handleRemoveFromWishlist = (book) => {
     const updatedWishlist = wishlist.filter((item) => item._id !== book._id);
     setWishlist(updatedWishlist);
     localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
   };
 
-  // Function to handle viewing more details about a book
   const handleViewMore = (book) => {
     setSelectedBook(book);
     setShowModal(true);
   };
 
-  // Function to handle closing the modal
   const handleClose = () => {
     setShowModal(false);
     setSelectedBook(null);
   };
 
-  // Function to handle buying a book
   const handleBuy = async (book) => {
     try {
       const response = await axios.put(`http://localhost:5000/books/${book._id}/buy`);
       if (response.status === 200) {
-        setBookName(book.name);
+        setBookName(book.bookName);
         setShowThankYouModal(true);
-        await fetchBooks(); // Refresh books after purchase
+        const updatedWishlist = wishlist.map((item) => {
+          if (item._id === book._id) {
+            return {
+              ...item,
+              purchasedCopies: item.purchasedCopies + 1  // Increase purchased copies
+            };
+          }
+          return item;
+        });
+        setWishlist(updatedWishlist);
+        localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
       } else {
         alert('Failed to buy the book. No copies available.');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error buying book:', error);
     }
   };
 
-  // Function to handle closing the thank you modal
   const handleCloseThankYouModal = () => {
     setShowThankYouModal(false);
-  };
-
-  // Function to get book details by ID
-  const getBookDetails = (bookId) => {
-    return books.find(book => book._id === bookId);
   };
 
   return (
@@ -87,20 +67,19 @@ function Wishlist() {
       <div className="min-h-screen bg-blue-100 p-4">
         <h1 className="text-3xl font-bold text-center mb-6">Wishlist</h1>
         <div className="flex flex-wrap justify-center">
-          {wishlist.map((wishlistItem) => {
-            const book = getBookDetails(wishlistItem._id);
-            if (!book) return null; // Skip rendering if book details are not available
-
-            return (
+          {wishlist.length === 0 ? (
+            <p className="text-gray-700 text-center">No books in wishlist.</p>
+          ) : (
+            wishlist.map((book) => (
               <div key={book._id} className="bg-white shadow-md rounded-lg p-4 m-5 w-96 flex flex-col justify-between relative" style={{ height: 'auto' }}>
                 <div className="flex">
-                  <img src={book.photoUrl} alt={book.name} className="h-52 w-32 object-cover mb-4 mt-3 rounded-lg" />
+                  <img src={book.imgUrl} className="h-52 w-32 object-cover mb-4 mt-3 rounded-lg" alt={book.bookName} />
                   <div className="ml-5 flex-1">
-                    <h2 className="text-xl font-bold mb-2">{book.name}</h2>
-                    <p className="text-gray-700 mb-2 truncate">Author: {book.author}</p>
-                    <p className="text-gray-700 mb-2 truncate">Publisher: {book.publisher.name}</p>
-                    <p className="text-gray-700 mb-2 truncate">Copies: {book.copiesAvailable}</p>
-                    <p className="text-gray-700 mb-2 truncate">Published Date: {new Date(book.publishedYear).toLocaleDateString('en-GB')}</p>
+                    <h2 className="text-xl font-bold mb-2">{book.bookName}</h2>
+                    <p className="text-gray-700 mb-2 truncate">Author: {book.authorName}</p>
+                    <p className="text-gray-700 mb-2 truncate">Publisher: {book.publisherName}</p>
+                    <p className="text-gray-700 mb-2 truncate">Available Copies: {book.totalCopies - book.purchasedCopies}</p>
+                    <p className="text-gray-700 mb-2 truncate">Published Date: {new Date(book.publisherDate).toLocaleDateString('en-GB')}</p>
                     <p className="text-gray-700 mb-2 truncate">Price: ₹{book.price}</p>
                   </div>
                 </div>
@@ -127,32 +106,36 @@ function Wishlist() {
                   </button>
                 </div>
               </div>
-            );
-          })}
+            ))
+          )}
         </div>
       </div>
 
       <Modal show={showModal} onHide={handleClose} centered>
         <Modal.Header closeButton>
-          <Modal.Title>{selectedBook?.name}</Modal.Title>
+          <Modal.Title>{selectedBook?.bookName}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedBook && (
             <>
-              <img src={selectedBook.photoUrl} alt={selectedBook.name} className="w-full object-contain mb-4 rounded-lg" style={{ height: '270px' }} />
-              <div className="p-4">
-                <h2 className="text-xl font-bold mb-2">{selectedBook.name}</h2>
-                <p className="text-gray-700 mb-2">Author: {selectedBook.author}</p>
-                <p className="text-gray-700 mb-2">Publisher: {selectedBook.publisher.name}</p>
-                <p className="text-gray-700 mb-2">Copies: {selectedBook.copiesAvailable}</p>
-                <p className="text-gray-700 mb-2">Published Date: {new Date(selectedBook.publishedYear).toLocaleDateString('en-GB')}</p>
-                <p className="text-gray-700 mb-2">Price: ₹{selectedBook.price}</p>
-                <p className="text-gray-700 mb-4">Summary: {selectedBook.summary}</p>
-                <button className="bg-green-500 hover:bg-green-700 text-white p-2 rounded w-full" onClick={() => handleBuy(selectedBook)}>Buy</button>
-              </div>
+              <img src={selectedBook.imgUrl} alt={selectedBook.bookName} className="w-full object-contain mb-4 rounded-lg" style={{ maxHeight: '300px' }} />
+              <p><strong>Author:</strong> {selectedBook.authorName}</p>
+              <p><strong>Publisher:</strong> {selectedBook.publisherName}</p>
+              <p><strong>Available Copies:</strong> {selectedBook.availableCopies}</p>
+              <p><strong>Published Date:</strong> {new Date(selectedBook.publisherDate).toLocaleDateString('en-GB')}</p>
+              <p><strong>Price:</strong> ₹{selectedBook.price}</p>
+              <p><strong>Summary:</strong> {selectedBook.description}</p>
             </>
           )}
         </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={() => handleBuy(selectedBook)}>
+            Buy
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       <Modal show={showThankYouModal} onHide={handleCloseThankYouModal} centered>
@@ -160,7 +143,7 @@ function Wishlist() {
           <Modal.Title>Thank You!</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Thank you for buying "{bookName}". Happy reading :)</p>
+          <p className="text-lg">Thank you for buying <strong>{bookName}</strong>! Happy Reading... :)</p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="primary" onClick={handleCloseThankYouModal}>

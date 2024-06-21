@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 import UserNavbar from './UserNavbar';
 import { Modal, Button } from 'react-bootstrap';
+import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import BookCarousel from './BookCarousel';
 
 function UserDashboard() {
   const [books, setBooks] = useState([]);
@@ -11,16 +12,20 @@ function UserDashboard() {
   const [selectedBook, setSelectedBook] = useState(null);
   const [showThankYouModal, setShowThankYouModal] = useState(false);
   const [bookName, setBookName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchBooks = async () => {
+  const fetchBooks = async (query = '') => {
     try {
-      const response = await axios.get('http://localhost:5000/books');
+      const response = await axios.get('http://localhost:5000/books', {
+        params: { query }
+      });
       const formattedBooks = response.data.flatMap(publisher =>
         publisher.authors.flatMap(author =>
           author.books.map(book => ({
             ...book,
             authorName: author.authorName,
-            publisherName: publisher.publisherName
+            publisherName: publisher.publisherName,
+            availableCopies: book.totalCopies - book.purchasedCopies 
           }))
         )
       );
@@ -35,6 +40,11 @@ function UserDashboard() {
     const savedWishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
     setWishlist(savedWishlist);
   }, []);
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    fetchBooks(searchQuery);
+  };
 
   const handleAddToWishlist = (book) => {
     const updatedWishlist = [...wishlist, book];
@@ -77,22 +87,54 @@ function UserDashboard() {
     setShowThankYouModal(false);
   };
 
+  const handleLogout = async () => {
+    const email = localStorage.getItem('email');
+    const loginIndex = localStorage.getItem('loginIndex');
+    try {
+      await axios.post('http://localhost:5000/logout', { email, loginIndex });
+      localStorage.removeItem('email');
+      localStorage.removeItem('loginIndex');
+      localStorage.removeItem('wishlist');
+      setWishlist([]);
+      window.location.href = '/login';
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <>
-      <UserNavbar wishlistCount={wishlist.length} />
+      <UserNavbar wishlistCount={wishlist.length} handleLogout={handleLogout} />
+      <BookCarousel books={books} />
       <div className="min-h-screen bg-blue-100 p-4">
-        <h1 className="text-3xl font-bold text-center mb-6">Books</h1>
+        <h1 className="text-3xl font-bold text-center mb-6 mt-5">Welcome to Our Book Store</h1>
+        <form className="mb-4" onSubmit={handleSearch}>
+          <div className="flex justify-center">
+            <input
+              type="text"
+              className="p-2 w-2/3 rounded-l-lg border border-gray-300"
+              placeholder="Search by book name, author, or publisher"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="p-2 bg-blue-500 hover:bg-blue-700 text-white rounded-r-lg"
+            >
+              Search
+            </button>
+          </div>
+        </form>
         <div className="flex flex-wrap justify-center">
           {books.map((book) => (
             <div key={book._id} className="bg-white shadow-md rounded-lg p-4 m-5 w-96 flex flex-col justify-between relative" style={{ height: 'auto' }}>
               <div className="flex">
-                <img src={book.imgUrl} className="h-52 w-32 object-cover mb-4 mt-3 rounded-lg" />
+                <img src={book.imgUrl} className="h-52 w-32 object-cover mb-4 mt-3 rounded-lg" alt={book.bookName} />
                 <div className="ml-5 flex-1">
                   <h2 className="text-xl font-bold mb-2">{book.bookName}</h2>
                   <p className="text-gray-700 mb-2 truncate">Author: {book.authorName}</p>
                   <p className="text-gray-700 mb-2 truncate">Publisher: {book.publisherName}</p>
-                  <p className="text-gray-700 mb-2 truncate">Total Copies: {book.totalCopies}</p>
-                  <p className="text-gray-700 mb-2 truncate">Available Copies: {book.totalCopies - book.purchasedCopies}</p>
+                  <p className="text-gray-700 mb-2 truncate">Available Copies: {book.availableCopies}</p>
                   <p className="text-gray-700 mb-2 truncate">Published Date: {new Date(book.publisherDate).toLocaleDateString('en-GB')}</p>
                   <p className="text-gray-700 mb-2 truncate">Price: ₹{book.price}</p>
                 </div>
@@ -142,21 +184,24 @@ function UserDashboard() {
         <Modal.Body>
           {selectedBook && (
             <>
-              <img src={selectedBook.imgUrl} alt={selectedBook.bookName} className="w-full object-contain mb-4 rounded-lg" style={{ height: '270px' }} />
-              <div className="p-4">
-                <h2 className="text-xl font-bold mb-2">{selectedBook.bookName}</h2>
-                <p className="text-gray-700 mb-2">Author: {selectedBook.authorName}</p>
-                <p className="text-gray-700 mb-2">Publisher: {selectedBook.publisherName}</p>
-                <p className="text-gray-700 mb-2">Total Copies: {selectedBook.totalCopies}</p>
-                <p className="text-gray-700 mb-2">Available Copies: {selectedBook.totalCopies - selectedBook.purchasedCopies}</p>
-                <p className="text-gray-700 mb-2">Published Date: {new Date(selectedBook.publisherDate).toLocaleDateString('en-GB')}</p>
-                <p className="text-gray-700 mb-2">Price: ₹{selectedBook.price}</p>
-                <p className="text-gray-700 mb-4">Summary: {selectedBook.description}</p>
-                <button className="bg-green-500 hover:bg-green-700 text-white p-2 rounded w-full" onClick={() => handleBuy(selectedBook)}>Buy</button>
-              </div>
+              <img src={selectedBook.imgUrl} alt={selectedBook.bookName} className="w-full object-contain mb-4 rounded-lg" style={{ maxHeight: '300px' }} />
+              <p><strong>Author:</strong> {selectedBook.authorName}</p>
+              <p><strong>Publisher:</strong> {selectedBook.publisherName}</p>
+              <p><strong>Available Copies:</strong> {selectedBook.availableCopies}</p>
+              <p><strong>Published Date:</strong> {new Date(selectedBook.publisherDate).toLocaleDateString('en-GB')}</p>
+              <p><strong>Price:</strong> ₹{selectedBook.price}</p>
+              <p><strong>Summary:</strong> {selectedBook.description}</p>
             </>
           )}
         </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={() => handleBuy(selectedBook)}>
+            Buy
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       <Modal show={showThankYouModal} onHide={handleCloseThankYouModal} centered>
@@ -164,10 +209,10 @@ function UserDashboard() {
           <Modal.Title>Thank You!</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Thank you for buying "{bookName}". Happy reading :)</p>
+          <p>Thank you for buying <strong>{bookName}</strong>! Happy Reading... :)</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="primary" onClick={handleCloseThankYouModal}>
+          <Button variant="secondary" onClick={handleCloseThankYouModal}>
             Close
           </Button>
         </Modal.Footer>

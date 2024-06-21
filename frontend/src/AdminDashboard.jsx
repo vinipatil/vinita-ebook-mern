@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import AdminNavbar from './AdminNavbar'; 
+import AdminNavbar from './AdminNavbar';
 
 function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -90,9 +90,9 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-blue-100">
-      <AdminNavbar /> 
+      <AdminNavbar />
       <div className="flex flex-col items-center justify-center flex-grow bg-cover">
-        <div className="bg-white p-8 rounded-lg shadow-lg w-11/12 max-w-4xl">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-full">
           <h1 className="text-2xl font-bold mb-6 text-center">Admin Dashboard</h1>
           <table className="w-full table-auto border-collapse border border-gray-400">
             <thead>
@@ -140,11 +140,11 @@ function AdminDashboard() {
                           user.email
                         )}
                       </td>
-                      <td className="border border-gray-400 p-2">{formattedDate}</td>
-                      <td className="border border-gray-400 p-2">{formattedLoginTime}</td>
-                      <td className="border border-gray-400 p-2">{formattedLogoutTime}</td>
-                      <td className="border border-gray-400 p-2">
-                        <div className="flex space-x-2">
+                      <td className="border border-gray-400 p-2 text-center">{formattedDate}</td>
+                      <td className="border border-gray-400 p-2 text-center">{formattedLoginTime}</td>
+                      <td className="border border-gray-400 p-2 text-center">{formattedLogoutTime}</td>
+                      <td className="border border-gray-400 p-2 text-center">
+                        <div className="flex justify-center space-x-2">
                           {editMode === user._id ? (
                             <button className="bg-green-500 hover:bg-green-700 text-white p-2 rounded" onClick={handleSave}>Save</button>
                           ) : (
