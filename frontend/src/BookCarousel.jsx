@@ -9,7 +9,7 @@ const BookCarousel = () => {
   ];
 
   return (
-    <Carousel>
+    <Carousel interval={3000}>
       {carouselItems.map((item) => (
         <Carousel.Item key={item.id}>
           <img

@@ -7,7 +7,7 @@ function ViewBooks() {
   const [editMode, setEditMode] = useState(null);
   const [editBook, setEditBook] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [booksPerPage] = useState(5); // To handle 5 books on the first page
+  const [booksPerPage] = useState(5); 
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -73,7 +73,6 @@ function ViewBooks() {
     }
   };
 
-  // Adjusted Pagination Logic
   const firstPageBooks = books.slice(0, 5);
   const remainingBooks = books.slice(5);
   const indexOfLastBook = (currentPage - 1) * booksPerPage;
@@ -101,7 +100,10 @@ function ViewBooks() {
     <div className="min-h-screen flex flex-col">
       <AdminNavbar />
       <div className="flex flex-col items-center justify-center flex-grow bg-cover w-full">
-        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-full">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-full" style={{
+      backgroundImage:
+        'url("https://cdn.wallpapersafari.com/78/14/dFQR2j.jpg")',
+    }}>
           <h1 className="text-4xl font-bold mb-9 text-center">View Book Details</h1>
           <table className="w-full table-auto border-collapse border border-gray-400">
             <thead>
@@ -111,6 +113,7 @@ function ViewBooks() {
                 <th className="border border-gray-400 p-2 text-center">Author</th>
                 <th className="border border-gray-400 p-2 text-center">Book Name</th>
                 <th className="border border-gray-400 p-2 text-center">Published Date</th>
+                <th className="border border-gray-400 p-2 text-center">Total Copies</th> 
                 <th className="border border-gray-400 p-2 text-center">Available Copies</th>
                 <th className="border border-gray-400 p-2 text-center">Purchases</th>
                 <th className="border border-gray-400 p-2 text-center">Price</th>
@@ -182,6 +185,19 @@ function ViewBooks() {
                         new Date(book.publisherDate).toLocaleDateString('en-GB')
                       )}
                     </td>
+                    <td className="border border-gray-400 p-2 text-center"> 
+                      {editMode === book._id ? (
+                        <input
+                          type="number"
+                          name="totalCopies"
+                          value={editBook.totalCopies}
+                          onChange={handleInputChange}
+                          className="w-full p-2"
+                        />
+                      ) : (
+                        book.totalCopies
+                      )}
+                    </td>
                     <td className="border border-gray-400 p-2 text-center">
                       {editMode === book._id ? (
                         <input
@@ -198,6 +214,7 @@ function ViewBooks() {
                     <td className="border border-gray-400 p-2 text-center">
                       {book.purchasedCopies}
                     </td>
+                    
                     <td className="border border-gray-400 p-2 text-center">
                       {editMode === book._id ? (
                         <input

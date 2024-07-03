@@ -8,6 +8,8 @@ function AdminDashboard() {
   const [message, setMessage] = useState('');
   const [editMode, setEditMode] = useState(null);
   const [editUser, setEditUser] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loginsPerPage] = useState(6);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -88,12 +90,44 @@ function AdminDashboard() {
     return d.toLocaleTimeString();
   };
 
+  const handleClick = (event) => {
+    setCurrentPage(Number(event.target.id));
+  };
+
+  const pages = [];
+  for (let i = 1; i <= Math.ceil(users.reduce((acc, user) => acc + user.logins.length, 0) / loginsPerPage); i++) {
+    pages.push(i);
+  }
+
+  const renderPageNumbers = pages.map(number => {
+    return (
+      <li
+        key={number}
+        id={number}
+        onClick={handleClick}
+        className={`cursor-pointer inline-block mx-1 px-3 py-1 rounded ${currentPage === number ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+      >
+        {number}
+      </li>
+    );
+  });
+
+  const currentLogins = users.flatMap(user => 
+    user.logins.map(login => ({
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      login,
+      loginIndex: user.logins.indexOf(login)
+    }))
+  ).slice((currentPage - 1) * loginsPerPage, currentPage * loginsPerPage);
+
   return (
-    <div className="min-h-screen flex flex-col bg-blue-100">
+    <div className="min-h-screen flex flex-col bg-cover" >
       <AdminNavbar />
-      <div className="flex flex-col items-center justify-center flex-grow bg-cover">
-        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-full">
-          <h1 className="text-2xl font-bold mb-6 text-center">Admin Dashboard</h1>
+      <div className="flex min-h-screen flex bg-cover bg-blue-100">
+        <div className="p-8 rounded-lg shadow-lg w-full max-w-full" style={{ backgroundImage: 'url("https://cdn.wallpapersafari.com/78/14/dFQR2j.jpg")' }}>
+          <h1 className="text-4xl font-bold mb-10 text-center">User Login Details</h1>
           <table className="w-full table-auto border-collapse border border-gray-400">
             <thead>
               <tr className="bg-gray-200">
@@ -106,62 +140,63 @@ function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user, index) => (
-                user.logins.map((login, i) => {
-                  const formattedDate = formatDate(login.loginTime);
-                  const formattedLoginTime = formatTime(login.loginTime);
-                  const formattedLogoutTime = login.logoutTime ? formatTime(login.logoutTime) : 'N/A';
+              {currentLogins.map(({ userId, name, email, login, loginIndex }) => {
+                const formattedDate = formatDate(login.loginTime);
+                const formattedLoginTime = formatTime(login.loginTime);
+                const formattedLogoutTime = login.logoutTime ? formatTime(login.logoutTime) : 'N/A';
 
-                  return (
-                    <tr key={`${index}-${i}`} className="bg-white">
-                      <td className="border border-gray-400 p-2 whitespace-nowrap overflow-auto max-w-xs text-center">
-                        {editMode === user._id ? (
-                          <input
-                            type="text"
-                            name="name"
-                            value={editUser.name}
-                            onChange={handleInputChange}
-                            className="w-full p-2"
-                          />
+                return (
+                  <tr key={`${userId}-${loginIndex}`} className="bg-white">
+                    <td className="border border-gray-400 p-2 whitespace-nowrap overflow-auto max-w-xs text-center">
+                      {editMode === userId ? (
+                        <input
+                          type="text"
+                          name="name"
+                          value={editUser.name}
+                          onChange={handleInputChange}
+                          className="w-full p-2"
+                        />
+                      ) : (
+                        name
+                      )}
+                    </td>
+                    <td className="border border-gray-400 p-2 whitespace-nowrap overflow-auto max-w-xs text-center">
+                      {editMode === userId ? (
+                        <input
+                          type="text"
+                          name="email"
+                          value={editUser.email}
+                          onChange={handleInputChange}
+                          className="w-full p-2"
+                        />
+                      ) : (
+                        email
+                      )}
+                    </td>
+                    <td className="border border-gray-400 p-2 text-center">{formattedDate}</td>
+                    <td className="border border-gray-400 p-2 text-center">{formattedLoginTime}</td>
+                    <td className="border border-gray-400 p-2 text-center">{formattedLogoutTime}</td>
+                    <td className="border border-gray-400 p-2 text-center">
+                      <div className="flex justify-center space-x-2">
+                        {editMode === userId ? (
+                          <button className="bg-green-500 hover:bg-green-700 text-white p-2 rounded" onClick={handleSave}>Save</button>
                         ) : (
-                          user.name
+                          <>
+                            <button className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded" onClick={() => handleEdit({ _id: userId, name, email })}>Edit</button>
+                            <button className="bg-red-500 hover:bg-red-700 text-white p-2 rounded" onClick={() => handleRemove(userId, loginIndex)}>Remove</button>
+                          </>
                         )}
-                      </td>
-                      <td className="border border-gray-400 p-2 whitespace-nowrap overflow-auto max-w-xs text-center">
-                        {editMode === user._id ? (
-                          <input
-                            type="text"
-                            name="email"
-                            value={editUser.email}
-                            onChange={handleInputChange}
-                            className="w-full p-2"
-                          />
-                        ) : (
-                          user.email
-                        )}
-                      </td>
-                      <td className="border border-gray-400 p-2 text-center">{formattedDate}</td>
-                      <td className="border border-gray-400 p-2 text-center">{formattedLoginTime}</td>
-                      <td className="border border-gray-400 p-2 text-center">{formattedLogoutTime}</td>
-                      <td className="border border-gray-400 p-2 text-center">
-                        <div className="flex justify-center space-x-2">
-                          {editMode === user._id ? (
-                            <button className="bg-green-500 hover:bg-green-700 text-white p-2 rounded" onClick={handleSave}>Save</button>
-                          ) : (
-                            <>
-                              <button className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded" onClick={() => handleEdit(user)}>Edit</button>
-                              <button className="bg-red-500 hover:bg-red-700 text-white p-2 rounded" onClick={() => handleRemove(user._id, i)}>Remove</button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {message && <p className="mt-4 text-center text-green-500">{message}</p>}
+          <ul className="flex justify-center mt-4">
+            {renderPageNumbers}
+          </ul>
         </div>
       </div>
     </div>

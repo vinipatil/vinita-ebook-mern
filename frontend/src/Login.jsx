@@ -11,15 +11,17 @@ function Login() {
   const handleLogin = async () => {
     try {
       const response = await axios.post('http://localhost:5000/login', { email, password });
-      const { message, loginIndex } = response.data;
+      const { message, loginIndex, userId } = response.data; // assuming userId is returned in the response
       if (message.includes('user dashboard')) {
         localStorage.setItem('email', email);
         localStorage.setItem('loginIndex', loginIndex);
+        localStorage.setItem('userId', userId); // store userId in localStorage
         navigate('/user-dashboard');
       } else if (message.includes('admin dashboard')) {
         localStorage.setItem('email', email);
         localStorage.setItem('loginIndex', loginIndex);
-        navigate('/admin-dashboard');
+        localStorage.setItem('userId', userId); // store userId in localStorage
+        navigate('/admin-home');
       } else {
         setMessage(message);
       }
@@ -28,6 +30,7 @@ function Login() {
       setMessage('Error logging in. Please try again.');
     }
   };
+  
 
   return (
     <div

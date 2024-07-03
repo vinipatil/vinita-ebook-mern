@@ -22,8 +22,8 @@ function AddBook() {
         imgUrl: imgUrl,
         description: description,
         publisherDate: publisherDate,
-        totalCopies: parseInt(totalCopies), // Ensure it's parsed as an integer
-        price: parseFloat(price), // Ensure it's parsed as a float
+        totalCopies: parseInt(totalCopies), 
+        price: parseFloat(price), 
       };
 
       const response = await axios.post('http://localhost:5000/books', {
@@ -43,7 +43,10 @@ function AddBook() {
   return (
     <>
       <AdminNavbar />
-      <div className="min-h-screen flex items-center justify-center bg-cover bg-blue-100">
+      <div className="min-h-screen flex items-center justify-center bg-cover bg-blue-100" style={{
+      backgroundImage:
+        'url("https://cdn.wallpapersafari.com/78/14/dFQR2j.jpg")',
+    }}>
         <div className="bg-white p-8 mt-3 rounded-lg shadow-lg w-96">
           <h1 className="text-2xl font-bold mb-6 text-center">Add Book</h1>
           <input

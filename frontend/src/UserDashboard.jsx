@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import UserNavbar from './UserNavbar';
-import { Modal, Button } from 'react-bootstrap';
+import { Modal, Button, Form } from 'react-bootstrap';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import BookCarousel from './BookCarousel';
@@ -11,8 +11,10 @@ function UserDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [showThankYouModal, setShowThankYouModal] = useState(false);
+  const [showBuyModal, setShowBuyModal] = useState(false);
   const [bookName, setBookName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [quantity, setQuantity] = useState(1);
 
   const fetchBooks = async (query = '') => {
     try {
@@ -63,25 +65,47 @@ function UserDashboard() {
     setShowModal(true);
   };
 
-  const handleClose = () => {
-    setShowModal(false);
-    setSelectedBook(null);
+  const handleBuy = (book) => {
+    setSelectedBook(book);
+    setShowBuyModal(true);
   };
 
-  const handleBuy = async (book) => {
+  const handleClose = () => {
+    setShowModal(false);
+    setShowBuyModal(false);
+    setSelectedBook(null);
+    setQuantity(1);
+  };
+
+  const confirmBuy = async (bookId) => {
+    const email = localStorage.getItem('email'); // Assuming user's email is stored in localStorage after login
+    const quantity = parseInt(document.getElementById("quantity").value, 10);
     try {
-      const response = await axios.put(`http://localhost:5000/books/${book._id}/buy`);
-      if (response.status === 200) {
-        setBookName(book.bookName);
-        setShowThankYouModal(true);
-        await fetchBooks();
-      } else {
-        alert('Failed to buy the book. No copies available.');
-      }
+      const response = await axios.post(`http://localhost:5000/purchase/${bookId}`, {
+        email,
+        quantity,
+      });
+      console.log('Book purchased successfully', response.data);
+  
+      // Update the books state to reduce the available copies count
+      setBooks((prevBooks) =>
+        prevBooks.map((book) =>
+          book._id === bookId
+            ? {
+                ...book,
+                purchasedCopies: book.purchasedCopies + quantity,
+                availableCopies: book.availableCopies - quantity,
+              }
+            : book
+        )
+      );
+  
+      setShowThankYouModal(true);
     } catch (error) {
       console.error('Error buying book:', error);
     }
   };
+  
 
   const handleCloseThankYouModal = () => {
     setShowThankYouModal(false);
@@ -106,14 +130,17 @@ function UserDashboard() {
     <>
       <UserNavbar wishlistCount={wishlist.length} handleLogout={handleLogout} />
       <BookCarousel books={books} />
-      <div className="min-h-screen bg-blue-100 p-4">
-        <h1 className="text-3xl font-bold text-center mb-6 mt-5">Welcome to Our Book Store</h1>
+      <div className="min-h-screen bg-blue-100 p-4 bg-cover" style={{
+      backgroundImage:
+        'url("https://wallpapertag.com/wallpaper/full/2/3/1/931467-free-cute-plain-backgrounds-1920x1080-pc.jpg")',
+    }}>
+        <h1 className="text-5xl font-bold text-center mb-6 mt-5">Welcome to Our Book Store</h1>
         <form className="mb-4" onSubmit={handleSearch}>
           <div className="flex justify-center">
             <input
               type="text"
               className="p-2 w-2/3 rounded-l-lg border border-gray-300"
-              placeholder="Search by book name, author, or publisher"
+              placeholder="Find your book..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -150,7 +177,7 @@ function UserDashboard() {
                   className="bg-green-500 hover:bg-green-700 text-white p-1 mr-9 rounded mb-2 w-1/3 ml-1"
                   onClick={() => handleBuy(book)}
                 >
-                  Buy
+                  Buy Now
                 </button>
                 {wishlist.some((item) => item._id === book._id) ? (
                   <button
@@ -179,7 +206,7 @@ function UserDashboard() {
 
       <Modal show={showModal} onHide={handleClose} centered>
         <Modal.Header closeButton>
-          <Modal.Title>{selectedBook?.bookName}</Modal.Title>
+          <Modal.Title>Book Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedBook && (
@@ -187,7 +214,7 @@ function UserDashboard() {
               <img src={selectedBook.imgUrl} alt={selectedBook.bookName} className="w-full object-contain mb-4 rounded-lg" style={{ maxHeight: '300px' }} />
               <p><strong>Author:</strong> {selectedBook.authorName}</p>
               <p><strong>Publisher:</strong> {selectedBook.publisherName}</p>
-              <p><strong>Available Copies:</strong> {selectedBook.availableCopies}</p>
+              <p><strong>Available Copies:</strong> {selectedBook.totalCopies - selectedBook.purchasedCopies}</p>
               <p><strong>Published Date:</strong> {new Date(selectedBook.publisherDate).toLocaleDateString('en-GB')}</p>
               <p><strong>Price:</strong> ₹{selectedBook.price}</p>
               <p><strong>Summary:</strong> {selectedBook.description}</p>
@@ -204,12 +231,53 @@ function UserDashboard() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showThankYouModal} onHide={handleCloseThankYouModal} centered>
+      <Modal show={showBuyModal} onHide={handleClose} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Thank You!</Modal.Title>
+          <Modal.Title>Buy Book</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Thank you for buying <strong>{bookName}</strong>! Happy Reading... :)</p>
+          {selectedBook && (
+            <>
+              <h2 className="text-xl font-bold mb-2">{selectedBook.bookName}</h2>
+              <p className="text-gray-700 mb-2">Available Copies: {selectedBook.availableCopies}</p>
+              <Form.Group controlId="quantity">
+                <Form.Label>Quantity</Form.Label>
+                <Form.Control
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value))}
+                  min="1"
+                  max={selectedBook.availableCopies}
+                />
+              </Form.Group>
+              <p className="text-gray-700 mt-2">Total Price: ₹{selectedBook.price * quantity}</p>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              confirmBuy(selectedBook._id);
+              setBookName(selectedBook.bookName);
+              handleClose();
+              setShowThankYouModal(true);
+            }}
+          >
+            Buy
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showThankYouModal} onHide={handleCloseThankYouModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Thank You</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-lg">Thank you for buying <strong>{bookName}</strong>! Happy Reading... :)</p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseThankYouModal}>
